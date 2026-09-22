@@ -41,6 +41,7 @@ import 'package:dan_xi/util/haptic_feedback_util.dart';
 import 'package:dan_xi/widget/forum/auto_banner.dart';
 import 'package:dan_xi/widget/forum/forum_widgets.dart';
 import 'package:dan_xi/widget/forum/login_widgets.dart';
+import 'package:dan_xi/widget/forum/ottag_selector.dart';
 import 'package:dan_xi/widget/forum/render/render_impl.dart';
 import 'package:dan_xi/widget/forum/tag_selector/selector.dart';
 import 'package:dan_xi/widget/libraries/error_page_widget.dart';
@@ -361,6 +362,8 @@ enum PostsType {
 /// the posts which is created by the user (whether it is false or true).
 /// [String] tagFilter: if [tagFilter] is not null, it means this page is showing
 /// the posts which is tagged with [tagFilter].
+/// [List<String>] tagFilters: if [tagFilters] is not null, it means this page is showing
+/// the posts which is tagged with all the tags in [tagFilters].
 ///
 class ForumSubpageState extends PlatformSubpageState<ForumSubpage> {
   /// Unrelated to the state.
@@ -375,7 +378,9 @@ class ForumSubpageState extends PlatformSubpageState<ForumSubpage> {
       GlobalKey<RefreshIndicatorState>();
   final GlobalKey<AutoBannerState> bannerKey = GlobalKey<AutoBannerState>();
 
-  String? _tagFilter;
+  /// The tags that this page is filtering by.
+  /// Empty when not filtering by tag.
+  List<String> _tagFilters = [];
   PostsType _postsType = PostsType.NORMAL_POSTS;
 
   ListDelegate? _delegate;
@@ -466,10 +471,10 @@ class ForumSubpageState extends PlatformSubpageState<ForumSubpage> {
           }
 
           final DivisionIdentifier? requestDivisionId =
-              _tagFilter == null ? getDivisionId(context) : null;
+              _tagFilters.isEmpty ? getDivisionId(context) : null;
           return ForumRepository.getInstance().loadHoles(
               time, requestDivisionId,
-              tag: _tagFilter,
+              tags: _tagFilters.isEmpty ? null : _tagFilters,
               sortOrder: sortOrder);
         }).call(page);
 
@@ -625,10 +630,16 @@ class ForumSubpageState extends PlatformSubpageState<ForumSubpage> {
   @override
   void didChangeDependencies() {
     if (!_fieldInitComplete) {
-      if (widget.arguments?.containsKey('tagFilter') ?? false) {
-        _tagFilter = widget.arguments!['tagFilter'];
+      if (widget.arguments?.containsKey('tagFilters') ?? false) {
+        final List<dynamic>? tagFilters = widget.arguments!['tagFilters'];
+        if (tagFilters != null) {
+          _tagFilters = tagFilters.whereType<String>().toList();
+        }
+      } else if (widget.arguments?.containsKey('tagFilter') ?? false) {
+        final String? tagFilter = widget.arguments!['tagFilter'];
+        if (tagFilter != null) _tagFilters = [tagFilter];
       }
-      if (_tagFilter != null) {
+      if (_tagFilters.isNotEmpty) {
         _postsType = PostsType.FILTER_BY_TAG;
       } else if (widget.arguments?.containsKey('showSubscribedDiscussion') ??
           false) {
@@ -707,7 +718,29 @@ class ForumSubpageState extends PlatformSubpageState<ForumSubpage> {
           iosContentBottomPadding: false,
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: PlatformAppBarX(
-            title: Text(S.of(context).filtering_by_tag(_tagFilter ?? "?")),
+            title: Text(
+                S.of(context).filtering_by_tags(_tagFilters.join(", "))),
+            trailingActions: [
+              PlatformIconButton(
+                padding: EdgeInsets.zero,
+                icon: Icon(PlatformX.isMaterial(context)
+                    ? Icons.edit
+                    : CupertinoIcons.pencil),
+                onPressed: () async {
+                  HapticFeedbackUtil.light();
+                  final List<String>? selectedTags =
+                      await showOTTagSelectionDialog(context,
+                          initialTagNames: _tagFilters);
+                  if (!mounted || selectedTags == null || selectedTags.isEmpty) {
+                    return;
+                  }
+                  setState(() {
+                    _tagFilters = selectedTags;
+                  });
+                  await refreshList();
+                },
+              ),
+            ],
           ),
           body: Builder(
             // The builder widget updates context so that MediaQuery below can use the correct context (that is, Scaffold considered)
@@ -981,6 +1014,27 @@ Widget buildForumTopBar() => Selector<ForumProvider, bool>(
                     smartNavigatorPush(context, '/bbs/search',
                       forcePushOnMainNavigator: true);
                       },
+                ),
+              ),
+              Padding(
+                padding: PlatformX.isMaterial(context)
+                    ? const EdgeInsets.only(right: 4.0)
+                    : EdgeInsets.zero,
+                child: PlatformIconButton(
+                  icon: Icon(PlatformX.isMaterial(context)
+                      ? Icons.tag
+                      : CupertinoIcons.tag),
+                  onPressed: () async {
+                    HapticFeedbackUtil.light();
+                    final List<String>? selectedTags =
+                        await showOTTagSelectionDialog(context);
+                    if (!context.mounted ||
+                        selectedTags == null ||
+                        selectedTags.isEmpty) return;
+                    smartNavigatorPush(context, '/bbs/discussions',
+                        arguments: {"tagFilters": selectedTags},
+                        forcePushOnMainNavigator: true);
+                  },
                 ),
               ),
               const OTTitle()
