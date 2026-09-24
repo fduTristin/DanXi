@@ -339,7 +339,6 @@ class ForumRepository extends BaseRepositoryWithDio {
 
   Future<List<OTHole>?> loadHoles(DateTime startTime, DivisionIdentifier? division,
       {int length = Constant.POST_COUNT_PER_PAGE,
-      String? tag,
       List<String>? tags,
       SortOrder? sortOrder}) async {
     sortOrder ??= SortOrder.LAST_REPLIED;
@@ -365,7 +364,6 @@ class ForumRepository extends BaseRepositoryWithDio {
             "start_time": startTime.toUtc().toIso8601String(),
             if (division is DivisionId) "division_id": division.id,
             "length": length,
-            "tag": tag,
             if (hasTags) "tags": tags,
             "order": sortOrder.getInternalString()
           },

@@ -360,8 +360,6 @@ enum PostsType {
 /// it means this page is showing user's subscribed posts (whether it is false or true).
 /// [bool] showFilterByMe: if [showFilterByMe] is not null, it means this page is showing
 /// the posts which is created by the user (whether it is false or true).
-/// [String] tagFilter: if [tagFilter] is not null, it means this page is showing
-/// the posts which is tagged with [tagFilter].
 /// [List<String>] tagFilters: if [tagFilters] is not null, it means this page is showing
 /// the posts which is tagged with all the tags in [tagFilters].
 ///
@@ -635,9 +633,6 @@ class ForumSubpageState extends PlatformSubpageState<ForumSubpage> {
         if (tagFilters != null) {
           _tagFilters = tagFilters.whereType<String>().toList();
         }
-      } else if (widget.arguments?.containsKey('tagFilter') ?? false) {
-        final String? tagFilter = widget.arguments!['tagFilter'];
-        if (tagFilter != null) _tagFilters = [tagFilter];
       }
       if (_tagFilters.isNotEmpty) {
         _postsType = PostsType.FILTER_BY_TAG;
