@@ -713,8 +713,9 @@ class ForumSubpageState extends PlatformSubpageState<ForumSubpage> {
           iosContentBottomPadding: false,
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: PlatformAppBarX(
-            title: Text(
-                S.of(context).filtering_by_tags(_tagFilters.join(", "))),
+            title: Text(_tagFilters.isEmpty
+                ? S.of(context).filter_by_tags
+                : S.of(context).filtering_by_tags(_tagFilters.join(", "))),
             trailingActions: [
               PlatformIconButton(
                 padding: EdgeInsets.zero,
@@ -726,10 +727,14 @@ class ForumSubpageState extends PlatformSubpageState<ForumSubpage> {
                   final List<String>? selectedTags =
                       await showOTTagSelectionDialog(context,
                           initialTagNames: _tagFilters);
-                  if (!mounted || selectedTags == null || selectedTags.isEmpty) {
+                  if (!mounted || selectedTags == null) {
                     return;
                   }
                   setState(() {
+                    // An empty (but non-null) selection clears the filter.
+                    // Stay in FILTER_BY_TAG: this page is pushed as a route
+                    // (_isInTab == false) and NORMAL_POSTS builds no scaffold,
+                    // which only works when embedded in the home tab.
                     _tagFilters = selectedTags;
                   });
                   await refreshList();
